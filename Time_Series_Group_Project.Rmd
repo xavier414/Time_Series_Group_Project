@@ -6,11 +6,19 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
+install.packages("forecast")
 knitr::opts_chunk$set(echo = TRUE)
 library(tsoutliers)
 library(knitr)
 library(fpp2)
+library(SWMPr)
+library(forecast)
+library(dygraphs)
+library(dplyr)
 ```
+
+
+
 
 so originall from: https://www.baa.org/races/boston-marathon/results/champions
 
@@ -29,15 +37,31 @@ We can see that the data lasts from 1897 to 2016 and is on a yearly basis.
 plot(marathon, main = "Basic Plot of Marathon Data")
 ```
 
+#lag plot
+
+```{r}
+install.packages("TSstudio")
+library(TSstudio)
+lag.plot(marathon, lags = 4)
+ts_lags(marathon) 
+lagplot(marathon)
+```
 
 
 ```{r}
 acf(marathon, lag=150)
 pacf(marathon, lag=150)
+Box.test(diff(lmarathon), type="Ljung-Box") #the show dependence on each other which is a bit of an issue, there's autocorrelation lol
+
 ```
 
 
 This is a bit odd, espcially the ACF, or the slow decending trend.
+
+
+```{r}
+decompose(marathon) #ASK MAURICIO
+```
 
 
 
@@ -61,6 +85,12 @@ tso(marathon)
 plot(diff(lmarathon)) #one differnce appears to be enough
 acf(diff(lmarathon), lag=150)
 pacf(diff(lmarathon), lag=150)
+
+#lag 0 of the ACF is 1, lag 1 is the varaince. lag 0 of the PACF is the variance
+
+#maybe think about adding the trend line here. not sure if it's possible.
+
+# if log-transformed is differenced with lag 1, we obtain the so-called log-return
 ```
 
 
@@ -74,5 +104,149 @@ tso(diff(lmarathon), types = c("A0", "LS", "TC"))
 tso(diff(marathon), types = c("A0", "LS", "TC", "SLS"))
 tso(lmarathon, types = c("A0", "LS", "TC"))
 
+```
+
+
+
+```{r}
+#CAN'T FIGURE IT OUT: https://anomaly.io/seasonal-trend-decomposition-in-r/index.html
+#ts_marathon = ts(marathon, frequency = 1)
+#decompose_marathon = decompose(ts_marathon, "multiplicative")
+ 
+#plot(as.ts(decompose_marathon$seasonal))
+#plot(as.ts(decompose_marathon$trend))
+#plot(as.ts(decompose_marathon$random))
+#plot(decompose_marathon)
+```
+
+So we reject the null hypothesis which tells as that there is significant correlation meaning that are model is from different from white noise.
+
+ARMA is built on this assumption: conditional mean is a (linear) function of past instances
+of the series as well as past innovations.
+
+Any of those weird equations we broke down?
+
+obtain the parameters? Its MA so I think we need to use CSS and then MLE.
+
+In order to be stationary, the unconditional mean and variance of the
+MA(q) process should be constant. not sure it is
+
+
+
+
+## Estimating the parameters
+
+
+```{r}
+#PARAMETER ESTIMATION WITH CSS-ML
+arima(x = marathon, order=c(0,1,1), method = "CSS-ML")
+arima(x = lmarathon, order=c(0,1,1), method = "CSS-ML")
+arima(x = diff(lmarathon), order=c(0,0,1), method = "CSS-ML") #honestly doesn't really change that much
+
+#down bias of estimate important to mention
+```
+
+so the -0.6492 is the theta. 
+
+
+
+
+
+```{r}
+#could be a cool graph
+library(ggfortify)
+library(magrittr) # for piping %>%
+library(dplyr)
+library(changepoint)
+# Plot ts objects
+autoplot(marathon)
+# Identify change points in mean and variance
+marathon %>%
+  changepoint::cpt.meanvar() %>%  # Identify change points
+  autoplot()
+# Detect jump in a data
+strucchange::breakpoints(Nile ~ 1) %>%
+  autoplot()
+```
+
+
+
+
+
+```{r}
+
+# Kinda useless
+
+install.packages("ggpmisc")
+library(ggpmisc)
+ggplot(marathon, as.numeric = FALSE) + geom_line() + 
+  stat_peaks(colour = "red") +
+  stat_peaks(geom = "text", colour = "red", 
+             vjust = -0.5, x.label.fmt = "%Y") +
+  stat_valleys(colour = "blue") +
+  stat_valleys(geom = "text", colour = "blue", angle = 45,
+               vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
+  ylim(-500, 7300)
+```
+
+
+```{r}
+#USING THE POLYNOMIAL
+
+abs(polyroot(c(-0.69))) #NO POINT SINCE WE HAVE ONE
+
+```
+
+
+
+
+```{r}
+x=marathon
+fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=50)
+ts.plot(x,lty=3, main="MA(1) and prediction")
+lines(x,lwd=2)
+lines(forecast$pred,lwd=2,col="red")
+lines(forecast$pred+forecast$se*1.96,lwd=2,col="red")
+lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
+```
+
+
+
+```{r}
+x=arima.sim(list(order=c(0,0,1), ma=0.7),200)
+bt<-window(x,1,176)
+fit<-arima(bt,order=c(0,0,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=24)
+ts.plot(x,lty=3, main="MA(1) and prediction")
+lines(bt,lwd=2)
+lines(forecast$pred,lwd=2,col="red")
+lines(forecast$pred+forecast$se*1.96,lwd=2,col="red")
+lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
+```
+
+
+
+
+```{r}
+
+#I DON'T THINK IT'S WORKING
+
+marathon %>%
+  forecast(h=12) %>%
+  {cbind(actuals=.$x, forecast_mean=.$mean,
+         lower_95=.$lower[,"95%"], upper_95=.$upper[,"95%"],
+         lower_80=.$lower[,"80%"], upper_80=.$upper[,"80%"])} %>%
+  dygraph() %>%
+  dySeries("actuals", color = "black") %>%
+  dySeries(c("lower_80", "forecast_mean", "upper_80"),
+           label = "80%", color = "blue") %>%
+  dySeries(c("lower_95", "forecast_mean", "upper_95"),
+           label = "95%", color = "blue")
+```
+
+```{r}
+pm <- forecast(fit, h=12)
+plot(pm)
 ```
 
