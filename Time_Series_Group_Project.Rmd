@@ -1,0 +1,78 @@
+---
+title: "Time_Series_Group_Project"
+author: "Xavier Bryant"
+date: "24/03/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tsoutliers)
+library(knitr)
+library(fpp2)
+```
+
+so originall from: https://www.baa.org/races/boston-marathon/results/champions
+
+varying course lengths: https://ade3.medium.com/bostons-evolution-1897-2018-cdd91aa79f95
+
+
+```{r}
+marathon <- marathon # the time series is already defined as can be seen below
+```
+
+
+We can see that the data lasts from 1897 to 2016 and is on a yearly basis.
+
+
+```{r}
+plot(marathon, main = "Basic Plot of Marathon Data")
+```
+
+
+
+```{r}
+acf(marathon, lag=150)
+pacf(marathon, lag=150)
+```
+
+
+This is a bit odd, espcially the ACF, or the slow decending trend.
+
+
+
+```{r}
+lmarathon <- log(marathon)
+plot(lmarathon)
+acf(lmarathon, lag=150)
+pacf(lmarathon, lag=150)
+```
+
+
+```{r}
+auto.arima(marathon, ic="aic")
+auto.arima(lmarathon, ic="aic")
+tso(marathon)
+```
+
+
+
+```{r}
+plot(diff(lmarathon)) #one differnce appears to be enough
+acf(diff(lmarathon), lag=150)
+pacf(diff(lmarathon), lag=150)
+```
+
+
+
+```{r}
+outmarathon <- tso(marathon, types = c("A0", "LS", "TC", "IO", "SLS")) #considered all the types of outlier possible
+plot(outmarathon)
+tso(marathon, types = c("A0", "LS", "TC"))
+tso(diff(lmarathon), types = c("A0", "LS", "TC", "IO", "SLS"))
+tso(diff(lmarathon), types = c("A0", "LS", "TC"))
+tso(diff(marathon), types = c("A0", "LS", "TC", "SLS"))
+tso(lmarathon, types = c("A0", "LS", "TC"))
+
+```
+
