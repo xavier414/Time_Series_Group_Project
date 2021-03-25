@@ -107,7 +107,18 @@ ts_lags(lmarathon)
 
 
 ```{r}
-# decompose(marathon) #CNAT GET IT TO WORK AT THE MOMENT (NO SEASONAL TREND), ATTEMPT TO SEPERATE TREND FROM RANDOM MOVEMENT, WOULD BE NICE THOUGH
+# decompose(marathon) #CANT GET IT TO WORK AT THE MOMENT (NO SEASONAL TREND), ATTEMPT TO SEPERATE TREND FROM RANDOM MOVEMENT, WOULD BE NICE THOUGH
+```
+
+```{r}
+#CAN'T FIGURE IT OUT: https://anomaly.io/seasonal-trend-decomposition-in-r/index.html
+#ts_marathon = ts(marathon, frequency = 1)
+#decompose_marathon = decompose(ts_marathon, "multiplicative")
+ 
+#plot(as.ts(decompose_marathon$seasonal))
+#plot(as.ts(decompose_marathon$trend))
+#plot(as.ts(decompose_marathon$random))
+#plot(decompose_marathon)
 ```
 
 
@@ -147,34 +158,8 @@ plot(outmarathon)
 ```
 
 
+Now we will estimating the parameters.
 
-```{r}
-#CAN'T FIGURE IT OUT: https://anomaly.io/seasonal-trend-decomposition-in-r/index.html
-#ts_marathon = ts(marathon, frequency = 1)
-#decompose_marathon = decompose(ts_marathon, "multiplicative")
- 
-#plot(as.ts(decompose_marathon$seasonal))
-#plot(as.ts(decompose_marathon$trend))
-#plot(as.ts(decompose_marathon$random))
-#plot(decompose_marathon)
-```
-
-So we reject the null hypothesis which tells as that there is significant correlation meaning that are model is from different from white noise.
-
-ARMA is built on this assumption: conditional mean is a (linear) function of past instances
-of the series as well as past innovations.
-
-Any of those weird equations we broke down?
-
-obtain the parameters? Its MA so I think we need to use CSS and then MLE.
-
-In order to be stationary, the unconditional mean and variance of the
-MA(q) process should be constant. not sure it is
-
-
-
-
-## Estimating the parameters
 
 
 ```{r}
@@ -216,66 +201,18 @@ INCLUDE PLOT SEPERATED BY YEAR.
 
 
 
+
+
+
 ```{r}
-
-# Kinda useless
-
-install.packages("ggpmisc")
-library(ggpmisc)
-ggplot(marathon, as.numeric = FALSE) + geom_line() + 
-  stat_peaks(colour = "red") +
-  stat_peaks(geom = "text", colour = "red", 
-             vjust = -0.5, x.label.fmt = "%Y") +
-  stat_valleys(colour = "blue") +
-  stat_valleys(geom = "text", colour = "blue", angle = 45,
-               vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
-  ylim(-500, 7300)
+#abs(polyroot(c(-0.69))) #NO POINT SINCE WE HAVE ONE
 ```
 
 
-```{r}
-#USING THE POLYNOMIAL
-
-abs(polyroot(c(-0.69))) #NO POINT SINCE WE HAVE ONE
-
-```
-
-
-
+## FORECASTS OF FIRST MODEL
 
 ```{r}
-x=marathon
-fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
-forecast<-predict(fit,n.ahead=50)
-ts.plot(x,lty=3, main="MA(1) and prediction")
-lines(x,lwd=2)
-lines(forecast$pred,lwd=2,col="red")
-lines(forecast$pred+forecast$se*1.96,lwd=2,col="red")
-lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
-```
-
-
-
-```{r}
-x=arima.sim(list(order=c(0,0,1), ma=0.7),200)
-bt<-window(x,1,176)
-fit<-arima(bt,order=c(0,1,1),include.mean=FALSE)
-forecast<-predict(fit,n.ahead=24)
-ts.plot(x,lty=3, main="MA(1) and prediction")
-lines(bt,lwd=2)
-lines(forecast$pred,lwd=2,col="red")
-lines(forecast$pred+forecast$se*1.96,lwd=2,col="red")
-lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
-```
-
-
-
-
-```{r}
-
-#I DON'T THINK IT'S WORKING
-
-lmarathon %>%
+marathon %>%
   forecast(h=36) %>%
   {cbind(actuals=.$x, forecast_mean=.$mean,
          lower_95=.$lower[,"95%"], upper_95=.$upper[,"95%"],
@@ -289,7 +226,55 @@ lmarathon %>%
 ```
 
 ```{r}
+x=marathon
+fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=50)
 pm <- forecast(fit, h=12)
 plot(pm)
 ```
+
+
+
+~~~~~~RANDOM NOTES~~~~~
+
+
+ARMA is built on this assumption: conditional mean is a (linear) function of past instances
+of the series as well as past innovations.
+
+Any of those weird equations we broke down?
+
+obtain the parameters? Its MA so I think we need to use CSS and then MLE.
+
+In order to be stationary, the unconditional mean and variance of the
+MA(q) process should be constant. not sure it is
+
+
+```{r}
+
+# Kinda useless
+
+#library(ggpmisc)
+#ggplot(marathon, as.numeric = FALSE) + geom_line() + 
+#  stat_peaks(colour = "red") +
+#  stat_peaks(geom = "text", colour = "red", 
+#            vjust = -0.5, x.label.fmt = "%Y") +
+#  stat_valleys(colour = "blue") +
+# stat_valleys(geom = "text", colour = "blue", angle = 45,
+#              vjust = 1.5, hjust = 1,  x.label.fmt = "%Y")+
+# ylim(-500, 7300)
+```
+
+
+
+## SECOND MODEL - SPLIT INTO THREE
+
+
+
+## THIRD MODEL - NON LINEAR 
+
+
+
+
+
+
 
