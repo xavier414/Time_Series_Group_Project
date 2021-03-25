@@ -15,14 +15,18 @@ library(SWMPr)
 library(forecast)
 library(dygraphs)
 library(dplyr)
+library(TSstudio)
 ```
+## Introduction 
+
+We use the Boston marathon data from.. 
+
+so original from: https://www.baa.org/races/boston-marathon/results/champions
+
+and inspired by: https://otexts.com/fpp2/nonlinear-regression.html
 
 
-
-
-so originall from: https://www.baa.org/races/boston-marathon/results/champions
-
-varying course lengths: https://ade3.medium.com/bostons-evolution-1897-2018-cdd91aa79f95
+load the data:
 
 
 ```{r}
@@ -30,18 +34,19 @@ marathon <- marathon # the time series is already defined as can be seen below
 ```
 
 
-We can see that the data lasts from 1897 to 2016 and is on a yearly basis.
+We can see that the data lasts from 1897 to 2016 and is on a yearly basis. we can see an overall decrease in the running times, which makes
+
 
 
 ```{r}
 plot(marathon, main = "Basic Plot of Marathon Data")
 ```
 
+Now reviewing the stationarity of the plot we see 
+
 #lag plot
 
 ```{r}
-install.packages("TSstudio")
-library(TSstudio)
 lag.plot(marathon, lags = 4)
 ts_lags(marathon) 
 lagplot(marathon)
@@ -170,6 +175,9 @@ strucchange::breakpoints(Nile ~ 1) %>%
 ```
 
 
+we note that there's actually three periods in the plot. there's varying course lengths: https://ade3.medium.com/bostons-evolution-1897-2018-cdd91aa79f95. We will check the relationship of the overall plot and the plot that's seperated but year. 
+
+INCLUDE PLOT SEPERATED BY YEAR.
 
 
 
