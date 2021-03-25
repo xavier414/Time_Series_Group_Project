@@ -17,7 +17,8 @@ library(dygraphs)
 library(dplyr)
 library(TSstudio)
 ```
-## Introduction 
+
+# First model 
 
 We use the Boston marathon data from.. 
 
@@ -42,73 +43,107 @@ We can see that the data lasts from 1897 to 2016 and is on a yearly basis. we ca
 plot(marathon, main = "Basic Plot of Marathon Data")
 ```
 
-Now reviewing the stationarity of the plot we see 
-
-#lag plot
-
-```{r}
-lag.plot(marathon, lags = 4)
-ts_lags(marathon) 
-lagplot(marathon)
-```
-
+Now reviewing the stationarity of the plot we see that the plot is not stationary reviewin the acf and the pacf:
 
 ```{r}
 acf(marathon, lag=150)
 pacf(marathon, lag=150)
-Box.test(diff(lmarathon), type="Ljung-Box") #the show dependence on each other which is a bit of an issue, there's autocorrelation lol
-
 ```
 
+At first look it appears that there is non-stationarity with the slow decrease in the ACF, which then increases again. We also have a some what decaying patten in the PACF, reminiscent of an MA, but there is some odd patterns. There is also several significant peaks. We will try to make our trend weakly stationary for our analysis.
 
-This is a bit odd, espcially the ACF, or the slow decending trend.
-
-
-```{r}
-decompose(marathon) #ASK MAURICIO
-```
-
+Reffering to our original plot, we will then take the log as we see that variance appears to be  dfferent throughout the series.
 
 
 ```{r}
 lmarathon <- log(marathon)
 plot(lmarathon)
-acf(lmarathon, lag=150)
-pacf(lmarathon, lag=150)
-```
-
-
-```{r}
-auto.arima(marathon, ic="aic")
-auto.arima(lmarathon, ic="aic")
-tso(marathon)
-```
-
-
-
-```{r}
-plot(diff(lmarathon)) #one differnce appears to be enough
-acf(diff(lmarathon), lag=150)
-pacf(diff(lmarathon), lag=150)
-
-#lag 0 of the ACF is 1, lag 1 is the varaince. lag 0 of the PACF is the variance
-
 #maybe think about adding the trend line here. not sure if it's possible.
+```
 
+
+
+
+We then can see that there is still in series, downward, that we need to remove, with the first difference to get the log return.
+
+
+
+```{r}
+dlmarathon <- diff(lmarathon)
+plot(dlmarathon)
 # if log-transformed is differenced with lag 1, we obtain the so-called log-return
 ```
 
 
 
-```{r}
-outmarathon <- tso(marathon, types = c("A0", "LS", "TC", "IO", "SLS")) #considered all the types of outlier possible
-plot(outmarathon)
-tso(marathon, types = c("A0", "LS", "TC"))
-tso(diff(lmarathon), types = c("A0", "LS", "TC", "IO", "SLS"))
-tso(diff(lmarathon), types = c("A0", "LS", "TC"))
-tso(diff(marathon), types = c("A0", "LS", "TC", "SLS"))
-tso(lmarathon, types = c("A0", "LS", "TC"))
+There is none constant deadlines. variance appears constant except in the 1910s (?) for the log return series.
 
+
+
+```{r}
+acf(dlmarathon, lag=150)
+pacf(dlmarathon, lag=150)
+```
+
+
+We see there's a decaying patttern in the first few peaks, of the AR, and then two significant peaks in the PACF. difficult to diagnose at the moment. This is tough to tell, although, it's likely we don't have white noise, as we have some significant peaks, we'd like to check if we have a relationship in our data with the Box-Ljung test.
+
+
+```{r}
+Box.test(lmarathon, type="Ljung-Box") 
+```
+
+Extremely small p-value so we definitely have a relationship with the past valeus (not white noise?). We can see this through the lag values representation. A definite relationship with past values, with the lags. We can see some almost linear relationships. It does get slightly weaker over time but is still visibly apparent.
+
+
+```{r}
+#lag.plot(lmarathon, lags = 4) #other methods
+ts_lags(lmarathon) 
+#lagPlot(lmarathon) #other mehods
+```
+
+
+
+
+
+```{r}
+# decompose(marathon) #CNAT GET IT TO WORK AT THE MOMENT (NO SEASONAL TREND), ATTEMPT TO SEPERATE TREND FROM RANDOM MOVEMENT, WOULD BE NICE THOUGH
+```
+
+
+We now will try to identify our model. 
+
+
+```{r}
+auto.arima(lmarathon, ic="aic")
+```
+
+
+
+We then identify our model without outliers below. We first try to find all outliers.
+
+
+
+```{r}
+tso(lmarathon, types = c("A0", "LS", "TC", "IO", "SLS")) #DON'T TAKE FIRST DIFFERENCE?
+```
+
+
+It defines three IOs which in our context, are difficult to find the logic with as a endogenous change. There is also no Seasonal outliser so we remove those.
+
+
+```{r}
+tso(lmarathon, types = c("A0", "LS", "TC"))
+```
+
+
+
+We see a few changes. Taking out the outliers we see tht the trend is more smooth. 1921 and 1953 we know that the track changes.
+
+
+```{r}
+outmarathon <- tso(lmarathon, types = c("A0", "LS", "TC")) #considered all the types of outlier possible
+plot(outmarathon)
 ```
 
 
