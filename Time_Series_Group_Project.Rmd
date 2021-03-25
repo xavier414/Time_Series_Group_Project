@@ -216,7 +216,7 @@ lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
 ```{r}
 x=arima.sim(list(order=c(0,0,1), ma=0.7),200)
 bt<-window(x,1,176)
-fit<-arima(bt,order=c(0,0,1),include.mean=FALSE)
+fit<-arima(bt,order=c(0,1,1),include.mean=FALSE)
 forecast<-predict(fit,n.ahead=24)
 ts.plot(x,lty=3, main="MA(1) and prediction")
 lines(bt,lwd=2)
@@ -232,8 +232,8 @@ lines(forecast$pred-forecast$se*1.96,lwd=2,col="red")
 
 #I DON'T THINK IT'S WORKING
 
-marathon %>%
-  forecast(h=12) %>%
+lmarathon %>%
+  forecast(h=36) %>%
   {cbind(actuals=.$x, forecast_mean=.$mean,
          lower_95=.$lower[,"95%"], upper_95=.$upper[,"95%"],
          lower_80=.$lower[,"80%"], upper_80=.$upper[,"80%"])} %>%
