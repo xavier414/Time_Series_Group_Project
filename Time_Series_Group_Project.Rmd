@@ -1,6 +1,6 @@
 ---
 title: "Time_Series_Group_Project"
-author: "Xavier Bryant"
+author: "Xavier Bryant, Adrian"
 date: "24/03/2021"
 output: pdf_document
 ---
@@ -18,7 +18,9 @@ library(dplyr)
 library(TSstudio)
 ```
 
-# First model 
+
+# Introdcution
+
 
 We use the Boston marathon data from.. 
 
@@ -35,15 +37,23 @@ marathon <- marathon # the time series is already defined as can be seen below
 ```
 
 
-We can see that the data lasts from 1897 to 2016 and is on a yearly basis. we can see an overall decrease in the running times, which makes
 
+
+
+# First model 
+
+
+We can see that the data lasts from 1897 to 2016 and is on a yearly basis. we can see an overall decrease in the running times, which makes
 
 
 ```{r}
 plot(marathon, main = "Basic Plot of Marathon Data")
 ```
 
+
 Now reviewing the stationarity of the plot we see that the plot is not stationary reviewin the acf and the pacf:
+
+
 
 ```{r}
 acf(marathon, lag=150)
@@ -64,7 +74,7 @@ plot(lmarathon)
 
 
 
-We then can see that there is still in series, downward, that we need to remove, with the first difference to get the log return.
+We then can see that there is still in series, downward, that we need to remove, with the first difference to get the log return. looks like non linear trend. also, changes throughout or piecewise changes.
 
 
 
@@ -76,7 +86,7 @@ plot(dlmarathon)
 
 
 
-There is none constant deadlines. variance appears constant except in the 1910s (?) for the log return series.
+There is none constant deadlines. variance appears constant except in the 1910s (?) for the log return series. 
 
 
 
@@ -86,14 +96,20 @@ pacf(dlmarathon, lag=150)
 ```
 
 
-We see there's a decaying patttern in the first few peaks, of the AR, and then two significant peaks in the PACF. difficult to diagnose at the moment. This is tough to tell, although, it's likely we don't have white noise, as we have some significant peaks, we'd like to check if we have a relationship in our data with the Box-Ljung test.
+We see there's a decaying patttern in the first few peaks, of the AR (or MA), and then two significant peaks in the PACF. difficult to diagnose at the moment. This is tough to tell, although, it's likely we don't have white noise, as we have some significant peaks, we'd like to check if we have a relationship in our data with the Box-Ljung test.
+
+
 
 
 ```{r}
 Box.test(lmarathon, type="Ljung-Box") 
 ```
 
-Extremely small p-value so we definitely have a relationship with the past valeus (not white noise?). We can see this through the lag values representation. A definite relationship with past values, with the lags. We can see some almost linear relationships. It does get slightly weaker over time but is still visibly apparent.
+
+
+Extremely small p-value so we definitely have a relationship with the past valeus (not white noise?). We can see this through the lag values representation. A definite relationship with past values, with the lags. We can see some almost linear relationships. It does get slightly weaker over time but is still visibly apparent. actually a representativion of the pacf.
+
+
 
 
 ```{r}
@@ -129,7 +145,9 @@ We now will try to identify our model.
 auto.arima(lmarathon, ic="aic")
 ```
 
+Means we have to take one difference.
 
+doesn't really look like an an MA in the ACF and PACF
 
 We then identify our model without outliers below. We first try to find all outliers.
 
@@ -140,7 +158,7 @@ tso(lmarathon, types = c("A0", "LS", "TC", "IO", "SLS")) #DON'T TAKE FIRST DIFFE
 ```
 
 
-It defines three IOs which in our context, are difficult to find the logic with as a endogenous change. There is also no Seasonal outliser so we remove those.
+It defines three IOs which in our context, are difficult to find the logic with as a endogenous change, running capacity doesn't change. There is also no Seasonal outliser so we remove those. IOs often overdefined too for LSs.
 
 
 ```{r}
@@ -154,11 +172,25 @@ We see a few changes. Taking out the outliers we see tht the trend is more smoot
 
 ```{r}
 outmarathon <- tso(lmarathon, types = c("A0", "LS", "TC")) #considered all the types of outlier possible
+
 plot(outmarathon)
 ```
 
 
 Now we will estimating the parameters.
+
+COULD DO ACF, PACF on the 
+
+
+```{r} 
+# TRY TO GET ACF AND PACF WITH THE OUTLIERS
+plot(outmarathon$yadj)
+plot(diff(outmarathon$yadj))
+acf(diff(outmarathon$yadj), lag=150)
+pacf(diff(outmarathon$yadj), lag=150)
+auto.arima(outmarathon$yadj, ic="aic")
+```
+
 
 
 
@@ -177,27 +209,9 @@ so the -0.6492 is the theta.
 
 
 
-```{r}
-#could be a cool graph
-library(ggfortify)
-library(magrittr) # for piping %>%
-library(dplyr)
-library(changepoint)
-# Plot ts objects
-autoplot(marathon)
-# Identify change points in mean and variance
-marathon %>%
-  changepoint::cpt.meanvar() %>%  # Identify change points
-  autoplot()
-# Detect jump in a data
-strucchange::breakpoints(Nile ~ 1) %>%
-  autoplot()
-```
 
 
-we note that there's actually three periods in the plot. there's varying course lengths: https://ade3.medium.com/bostons-evolution-1897-2018-cdd91aa79f95. We will check the relationship of the overall plot and the plot that's seperated but year. 
 
-INCLUDE PLOT SEPERATED BY YEAR.
 
 
 
@@ -212,7 +226,7 @@ INCLUDE PLOT SEPERATED BY YEAR.
 ## FORECASTS OF FIRST MODEL
 
 ```{r}
-marathon %>%
+outmarathon$yadj %>%
   forecast(h=36) %>%
   {cbind(actuals=.$x, forecast_mean=.$mean,
          lower_95=.$lower[,"95%"], upper_95=.$upper[,"95%"],
@@ -266,15 +280,287 @@ MA(q) process should be constant. not sure it is
 
 
 
-## SECOND MODEL - SPLIT INTO THREE
+## Second Model - Three segments of time
 
+
+we note that there's actually three periods in the plot. there's varying course lengths: https://ade3.medium.com/bostons-evolution-1897-2018-cdd91aa79f95. We will check the relationship of the overall plot and the plot that's seperated but year. 
+
+
+```{r}
+#could be a cool graph
+#library(ggfortify)
+#library(magrittr) # for piping %>%
+#library(dplyr)
+#library(changepoint)
+# Plot ts objects
+#autoplot(marathon)
+# Identify change points in mean and variance
+#marathon %>%
+#  changepoint::cpt.meanvar() %>%  # Identify change points
+# autoplot()
+# Detect jump in a data
+#strucchange::breakpoints(Nile ~ 1) %>%
+#  autoplot()
+```
+
+Here we can see the three seg
+
+```{r}
+library(fpp2)
+marathon <- marathon 
+par(mfrow=c(1,3))
+marathonts1<-ts(marathon[1:25],start=c(1897),end=c(1923),freq=1)
+marathonts2<-ts(marathon[25:56],start=c(1924),end=c(1953),freq=1)
+marathonts3<-ts(marathon[56:120],start=c(1954),freq=1)
+plot(marathonts1,main="Years 1897-1923")
+plot(marathonts2,main="Years 1924-1953")
+plot(marathonts3,main="Years 1954-2016")
+```
+
+
+
+Now we will look at the stationarity and diagnose the models of the three  models. We can see that, reviewing the plots, that we should likely take the first difference and the log since the variance is not equal is there is a trend in the three models.
+
+
+
+### Log-return and stationarity
+
+
+We will new review the plots of the log-returns as well as the correlograms and partial correlograms for each segmented series.
+
+
+#### First Segment (1897-1923)
+
+This is the first segment of the race and when the course was 24.3 miles long.
+
+We can see in the plots below that the first segment of years is likely a MA(1), and may have an AR(1) component, as both the ACF and PACF have decaying patterns, but the ACF has a significant peak at 1 and the PACF a significant peak at lag 1 as well.
+
+
+
+```{r}
+par(mfrow=c(1,3))
+lmarathonts1 <- log(marathonts1)
+dlmarathonts1 <- diff(lmarathonts1)
+plot(dlmarathonts1)+title("Log-return: Years 1897-1923")
+acf(dlmarathonts1, lag=150)
+pacf(dlmarathonts1, lag=150)
+```
+
+
+#### Second Segment (1923-1954)
+
+
+This is the second segment of the time series plot and when the Boston Martahon was increased to be 26.3 miles long to be in line with the Olympic standard.
+
+We then look at the second component of the plot. There is a likelihood of white noise in this plot since there is almost no significant peaks. There is one significant peak at lag 5 on the ACF, possibly leading us to believe it is an MA(5). There is also decaying patterns in both the PACF and ACF.
+
+
+
+```{r}
+par(mfrow=c(1,3))
+lmarathonts2 <- log(marathonts2)
+dlmarathonts2 <- diff(lmarathonts2)
+plot(dlmarathonts2)+title("Log-return: Years 1924-1953")
+acf(dlmarathonts2, lag=150)
+pacf(dlmarathonts2, lag=150)
+```
+
+
+
+However, we confirm with the Box-Ljung test that we reject the null of white noise, and that there is indeed a relationship with with the past data for the second segment of data.
+
+
+
+```{r}
+Box.test(lmarathonts2, type="Ljung-Box")
+```
+
+
+#### Third Segment (1954-2016)
+
+
+This is the third segment in time and is due to the fact that there was a correction in the course length in 1953 to recalibrate the length of the course after renovations in the city. The length of the marathon has not been touched since then.
+
+
+Now looking at the third segment in time (1953-2016), we see that the lag 1 is significant in the ACF and PACF and there are slightly decaying patterns. This leads us to believe there's a AR(1) and MA(1) components.
+
+
+
+```{r}
+par(mfrow=c(1,3))
+lmarathonts3 <- log(marathonts3)
+dlmarathonts3 <- diff(lmarathonts3)
+plot(dlmarathonts3)+title("Log-return: Years 1953-2016")
+acf(dlmarathonts3, lag=150)
+pacf(dlmarathonts3, lag=150)
+```
+
+
+### ARIMA approximations and Outlier detections
+
+
+We will now try to determine the orders of the models for an ARIMA approximation.
+
+
+#### First Segment (1897-1923)
+
+
+
+Attempting to determine the ARIMA model for the first segment we see that we get an ARIMA(0,1,1) without considering outliers and an ARIMA(0,0,0) when outliers are considered. Without outliers considered, this matches our original series' orders. With outliers considered, we have white noise with basically indicating that series may be dominated entirely by outliers.  We have a lot of variation in this series, in this intial series, and a limited number of years, this may be why that fitting an ARIMA model is difficult. We also don't see the $\theta$ close to stationarity.
+
+
+```{r}
+auto.arima(lmarathonts1, ic="aic")
+tso(lmarathonts1, types = c("A0", "LS", "TC"))
+```
+
+ 
+#### Second Segment (1923-1954)
+
+
+
+Now analyzing the second segement we see an ARIMA(1,0,0) for the model without outliers considered and an ARIMA(0,0,0) for a model with outliers removed, similarily to the first segment. This again may be because the outliers are driving the series, or because the short term period, the variation is being recognized as outliers. We also don't see the $\phi$ close to stationarity either. 
+
+
+
+```{r}
+auto.arima(lmarathonts2, ic="aic")
+tso(lmarathonts2, types = c("A0", "LS", "TC"))
+```
+
+
+#### Third Segment (1954-2016)
+
+
+
+We see that the third segment is robust to outliers and remains an ARIMA(0,1,1) when outliers are included or excluded, similar to the overall series. The time periods considered for this period is also substantially longer than the previous two. This would be a combination of a MA(1) and an I(1). We see that the $\theta$ coefficient is not very close to stationarity as well - at 0.-69. 
+
+
+```{r}
+auto.arima(lmarathonts3, ic="aic")
+tso(lmarathonts3, types = c("A0", "LS", "TC"))
+```
+
+
+
+We indeed  can see the affects of outliers are much stronger in the first and second period rather than the last in the plots below.
+
+
+```{r}
+outmarathonts1=tso(lmarathonts1, types = c("A0", "LS", "TC"))
+outmarathonts2=tso(lmarathonts2, types = c("A0", "LS", "TC"))
+outmarathonts3=tso(lmarathonts3, types = c("A0", "LS", "TC"))
+```
+
+```{r}
+par(mfrow=c(1,3))
+plot(outmarathonts1)
+plot(outmarathonts2)
+plot(outmarathonts3)
+```
+
+
+
+### Forecasts of time segments
+
+
+Now we can see how the three segments forecasts compare to those in the first section. CAN'T DECIDE WHETHER TO USE 
+
+
+```{r}
+par(mfrow=c(1,3))
+
+x=outmarathonts1$yadj
+fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=50)
+pm <- forecast(fit, h=12)
+plot(pm)
+x=outmarathonts2$yadj
+fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=50)
+pm <- forecast(fit, h=12)
+plot(pm)
+x=outmarathonts3$yadj
+fit<-arima(x,order=c(0,1,1),include.mean=FALSE)
+forecast<-predict(fit,n.ahead=50)
+pm <- forecast(fit, h=12)
+plot(pm)
+
+
+```
+
+
+
+As we have seen the predictions for the segmented series, our predictions are not caputring well, the variance of the trend. The first two periods, when outliers are removed, are only predicting white noise, and the last, similar to the initial general model, is an ARIMA(0,1,1), which predicts the mean with expanding intervals.
 
 
 ## THIRD MODEL - NON LINEAR 
 
 
+After seperating our function into three different models, we still would like to attempt to forecars 
+
+
+
+```{r}
+boston_men <- window(marathon, start=1924)
+h <- 30
+fit.lin <- tslm(boston_men ~ trend)
+fcasts.lin <- forecast(fit.lin, h = h)
+fit.exp <- tslm(boston_men ~ trend, lambda = 0)
+fcasts.exp <- forecast(fit.exp, h = h)
+
+t <- time(boston_men)
+t.break1 <- 1950
+t.break2 <- 1980
+tb1 <- ts(pmax(0, t - t.break1), start = 1924)
+tb2 <- ts(pmax(0, t - t.break2), start = 1924)
+
+fit.pw <- tslm(boston_men ~ t + tb1 + tb2)
+t.new <- t[length(t)] + seq(h)
+tb1.new <- tb1[length(tb1)] + seq(h)
+tb2.new <- tb2[length(tb2)] + seq(h)
+
+newdata <- cbind(t=t.new, tb1=tb1.new, tb2=tb2.new) %>%
+  as.data.frame()
+fcasts.pw <- forecast(fit.pw, newdata = newdata)
+
+fit.spline <- tslm(boston_men ~ t + I(t^2) + I(t^3) +
+  I(tb1^3) + I(tb2^3))
+fcasts.spl <- forecast(fit.spline, newdata = newdata)
+
+autoplot(boston_men) +
+  autolayer(fitted(fit.lin), series = "Linear") +
+  autolayer(fitted(fit.exp), series = "Exponential") +
+  autolayer(fitted(fit.pw), series = "Piecewise") +
+  autolayer(fitted(fit.spline), series = "Cubic Spline") +
+  autolayer(fcasts.pw, series="Piecewise") +
+  autolayer(fcasts.lin, series="Linear", PI=FALSE) +
+  autolayer(fcasts.exp, series="Exponential", PI=FALSE) +
+  autolayer(fcasts.spl, series="Cubic Spline", PI=FALSE) +
+  xlab("Year") + ylab("Winning times in minutes") +
+  ggtitle("Boston Marathon") +
+  guides(colour = guide_legend(title = " "))
+```
 
 
 
 
+
+```{r}
+boston_men %>%
+  splinef(lambda=0) %>%
+  autoplot()
+```
+
+
+
+
+
+
+
+```{r}
+boston_men %>%
+  splinef(lambda=0) %>%
+  checkresiduals()
+```
 
